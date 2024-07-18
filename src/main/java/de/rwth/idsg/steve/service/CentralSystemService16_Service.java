@@ -18,6 +18,7 @@
  */
 package de.rwth.idsg.steve.service;
 
+import de.rwth.idsg.steve.SteveConfiguration;
 import de.rwth.idsg.steve.ocpp.OcppProtocol;
 import de.rwth.idsg.steve.repository.OcppServerRepository;
 import de.rwth.idsg.steve.repository.SettingsRepository;
@@ -33,10 +34,17 @@ import jooq.steve.db.enums.TransactionStopEventActor;
 import lombok.extern.slf4j.Slf4j;
 import ocpp.cs._2015._10.*;
 import org.joda.time.DateTime;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.Writer;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Optional;
 
 /**
@@ -202,19 +210,42 @@ public class CentralSystemService16_Service {
                         .build();
 
         StringBuilder sb = new StringBuilder();
-        sb.append("<?xml version=\"1.0\"?><values>");
+        sb.append("<?xml version=\"1.0\"?>\n<values>\n");
         for (var transData : parameters.getTransactionData()) {
-            for(var sampledValue:transData.getSampledValue()){
-                if(sampledValue.getFormat()== ValueFormat.SIGNED_DATA){
-                    sb.append("<value transactionId=\""+transactionId+"\" context=\""+sampledValue.getContext().value()+"\">");
-                    sb.append("<signedData>"+sampledValue.getValue()+"</signedData>");
-                    sb.append("<publicKey>"+"TODO"+"</publicKey>");
-                    sb.append("</value>");
+            for (var sampledValue : transData.getSampledValue()) {
+                if (sampledValue.getFormat() == ValueFormat.SIGNED_DATA) {
+                    sb.append("<value transactionId=\"" + transactionId + "\" context=\"" + sampledValue.getContext().value() + "\">\n");
+                    sb.append("<signedData>" + sampledValue.getValue() + "</signedData>\n");
+                    //TODO: get PublicKey
+                    sb.append("<publicKey>" + "TODO" + "</publicKey>\n");
+                    sb.append("</value>\n");
                 }
             }
         }
         sb.append("</values>");
-        log.info("XMLString to save: "+ sb.toString());
+        String outPath = SteveConfiguration.CONFIG.getOcmfOutPath();
+        if (outPath == null || outPath.isEmpty()) {
+            log.error("Setting \"ocmf.outPath\" not set in main.properties, cannot output the XML File");
+            //log.info("XMLString to save: " + sb.toString());
+        } else {
+            try {
+                DateTimeFormatter dtf = DateTimeFormat.forPattern("yyyyMMdd_HHmmss");
+                //TODO: Set local timezone?
+                String filename = dtf.print(DateTime.now()) + "_" + chargeBoxIdentity + "_" + stopReason + ".xml";
+                File target = new File(outPath, filename);
+                if (target.createNewFile()) {
+                    Writer fileWriter = new FileWriter(target);
+                    fileWriter.write(sb.toString());
+                    fileWriter.close();
+                    log.info("Wrote file " + target.getAbsolutePath());
+                } else {
+                    log.error("File " + target.getAbsolutePath() + " already exists. Could not create new one");
+                }
+
+            } catch (Exception ex) {
+                log.error("Error while writing OCMF File: " + ex.getMessage() + "\n" + ex.getStackTrace());
+            }
+        }
         ocppServerRepository.updateTransaction(params);
 
         ocppServerRepository.insertMeterValues(chargeBoxIdentity, parameters.getTransactionData(), transactionId);

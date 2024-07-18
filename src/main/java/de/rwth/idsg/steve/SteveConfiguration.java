@@ -61,10 +61,13 @@ public enum SteveConfiguration {
     private final DB db;
     private final Jetty jetty;
 
+    private final String ocmfOutPath;
+
     SteveConfiguration() {
         PropertiesFileLoader p = new PropertiesFileLoader("main.properties");
 
         contextPath = sanitizeContextPath(p.getOptionalString("context.path"));
+        ocmfOutPath=sanitizeContextPath(p.getOptionalString("ocmf.outPath"));
         steveVersion = p.getString("steve.version");
         gitDescribe = useFallbackIfNotSet(p.getOptionalString("git.describe"), null);
         profile = ApplicationProfile.fromName(p.getString("profile"));
