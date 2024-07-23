@@ -18,22 +18,28 @@
  */
 package de.rwth.idsg.steve.web.api;
 
+import de.rwth.idsg.steve.ocpp.OcppTransport;
 import de.rwth.idsg.steve.repository.TransactionRepository;
+import de.rwth.idsg.steve.repository.dto.ChargePointSelect;
 import de.rwth.idsg.steve.repository.dto.Transaction;
+import de.rwth.idsg.steve.service.CentralSystemService16_Service;
+import de.rwth.idsg.steve.service.ChargePointService16_Client;
 import de.rwth.idsg.steve.web.api.ApiControllerAdvice.ApiErrorResponse;
 import de.rwth.idsg.steve.web.api.exception.BadRequestException;
 import de.rwth.idsg.steve.web.dto.TransactionQueryForm;
+import de.rwth.idsg.steve.web.dto.TransactionStartForm;
+import de.rwth.idsg.steve.web.dto.TransactionStopForm;
+import de.rwth.idsg.steve.web.dto.ocpp.RemoteStartTransactionParams;
+import de.rwth.idsg.steve.web.dto.ocpp.RemoteStopTransactionParams;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -48,11 +54,17 @@ public class TransactionsRestController {
 
     private final TransactionRepository transactionRepository;
 
+    //private final OcppServerRepository ocppServerRepository;
+
+    private final ChargePointService16_Client chargePoint16Service;
+
+    //private final CentralSystemService16_Service centralService16;
+
     @ApiResponses(value = {
-        @ApiResponse(code = 200, message = "OK"),
-        @ApiResponse(code = 400, message = "Bad Request", response = ApiErrorResponse.class),
-        @ApiResponse(code = 401, message = "Unauthorized", response = ApiErrorResponse.class),
-        @ApiResponse(code = 500, message = "Internal Server Error", response = ApiErrorResponse.class)}
+            @ApiResponse(code = 200, message = "OK"),
+            @ApiResponse(code = 400, message = "Bad Request", response = ApiErrorResponse.class),
+            @ApiResponse(code = 401, message = "Unauthorized", response = ApiErrorResponse.class),
+            @ApiResponse(code = 500, message = "Internal Server Error", response = ApiErrorResponse.class)}
     )
     @GetMapping(value = "")
     @ResponseBody
@@ -66,5 +78,41 @@ public class TransactionsRestController {
         var response = transactionRepository.getTransactions(params);
         log.debug("Read response for query: {}", response);
         return response;
+    }
+
+    @PostMapping(value = "/start")
+    @ResponseBody
+    public void startTransaction(@RequestBody @Valid TransactionStartForm params) {
+//TODO: timestamp optional?
+        //Queues the transaction to start on wallbox
+        var chargePoint = new ChargePointSelect(OcppTransport.JSON, params.chargeBoxId);
+        var transParams = new RemoteStartTransactionParams();
+        transParams.setChargePointSelectList(Arrays.asList(chargePoint));
+        transParams.setConnectorId(params.getConnectorId());
+        transParams.setIdTag(params.getIdTag());
+        //TODO: Wait until task is completed before trying to get the active transactions
+        chargePoint16Service.remoteStartTransaction(transParams);//response should be TaskId
+
+        //Starts the transaction in the Steve Backend
+        //return centralService16.startTransaction(params, params.chargeBoxId);
+    }
+
+    @PostMapping(value = "/stop")
+    public void stopTransaction(@RequestBody @Valid TransactionStopForm params) {
+        //TODO: way reliable way to get the transaction id of open transaction(s)
+        // for chargePoint + connector + TagId (TagId can not be in more than one active transaction)
+        List<Integer> activeTransactionIds = transactionRepository.getActiveTransactionIdOnConnector(params.chargeBoxId, params.getIdTag(), params.connectorId);
+        if (activeTransactionIds.size() > 0) {
+            log.info("Trying to stop Transaction with id " + activeTransactionIds.get(0) + " on chargebox " + params.chargeBoxId + " transactionCount(" + activeTransactionIds.size() + ")");
+            //needs to contain transactionId, maybe more
+            var chargePoint = new ChargePointSelect(OcppTransport.JSON, params.chargeBoxId);
+            var transParams = new RemoteStopTransactionParams();
+            transParams.setTransactionId(activeTransactionIds.get(0));
+            transParams.setChargePointSelectList(Arrays.asList(chargePoint));
+            var response = chargePoint16Service.remoteStopTransaction(transParams);
+            //return centralService16.stopTransaction(params, params.chargeBoxId);
+        } else {
+            log.warn("No Active transactions found");
+        }
     }
 }

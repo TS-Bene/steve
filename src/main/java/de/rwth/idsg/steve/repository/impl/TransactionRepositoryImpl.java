@@ -40,6 +40,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
 import java.io.Writer;
+import java.util.ArrayList;
 import java.util.List;
 
 import static de.rwth.idsg.steve.utils.CustomDSL.date;
@@ -85,6 +86,19 @@ public class TransactionRepositoryImpl implements TransactionRepository {
                     .and(CONNECTOR.CHARGE_BOX_ID.equal(chargeBoxId))
                   .where(TRANSACTION.STOP_TIMESTAMP.isNull())
                   .fetch(TRANSACTION.TRANSACTION_PK);
+    }
+
+    @Override
+    public List<Integer> getActiveTransactionIdOnConnector(String chargeBoxId,String idTag, int connectorId) {
+        return ctx.select(TRANSACTION.TRANSACTION_PK)
+                .from(TRANSACTION)
+                .join(CONNECTOR)
+                    .on(TRANSACTION.CONNECTOR_PK.equal(CONNECTOR.CONNECTOR_PK))
+                .where(TRANSACTION.STOP_TIMESTAMP.isNull())
+                .and(TRANSACTION.ID_TAG.equal(idTag))
+                .and(CONNECTOR.CHARGE_BOX_ID.equal(chargeBoxId))
+                .and(CONNECTOR.CONNECTOR_ID.equal(connectorId))
+                .fetch(TRANSACTION.TRANSACTION_PK);
     }
 
     @Override

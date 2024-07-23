@@ -40,6 +40,7 @@ import org.joda.time.DateTime;
 import org.jooq.DSLContext;
 import org.jooq.Record1;
 import org.jooq.SelectConditionStep;
+import org.jooq.Transaction;
 import org.jooq.impl.DSL;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.CollectionUtils;
@@ -478,4 +479,5 @@ public class OcppServerRepositoryImpl implements OcppServerRepository {
         // if unknown, do not throw exceptions. just insert manual.
         return TransactionStopFailedEventActor.manual;
     }
+
 }
