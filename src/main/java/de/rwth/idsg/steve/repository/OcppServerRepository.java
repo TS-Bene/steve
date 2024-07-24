@@ -41,6 +41,10 @@ public interface OcppServerRepository {
     void updateChargeboxDiagnosticsStatus(String chargeBoxIdentity, String status);
     void updateChargeboxHeartbeat(String chargeBoxIdentity, DateTime ts);
 
+    void updateChargeBoxPrivateKey(String chargeBoxId,String privateKey);
+
+    String getChargeBoxPublicKey(String chargeBoxId);
+
     void insertConnectorStatus(InsertConnectorStatusParams params);
 
     void insertMeterValues(String chargeBoxIdentity, List<MeterValue> list, int connectorId, Integer transactionId);

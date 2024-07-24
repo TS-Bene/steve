@@ -36,6 +36,7 @@ import ocpp.cs._2015._10.*;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
+import org.jooq.tools.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -43,8 +44,6 @@ import org.springframework.stereotype.Service;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.Writer;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Optional;
 
 /**
@@ -208,7 +207,12 @@ public class CentralSystemService16_Service {
                         .eventTimestamp(DateTime.now())
                         .eventActor(TransactionStopEventActor.station)
                         .build();
-
+        String publicKey = "";
+        try {
+            publicKey = ocppServerRepository.getChargeBoxPublicKey(chargeBoxIdentity);
+        } catch (Exception ex) {
+            log.error(String.format("Could not find publicKey for chargeBox '{0}'", chargeBoxIdentity));
+        }
         StringBuilder sb = new StringBuilder();
         sb.append("<?xml version=\"1.0\"?>\n<values>\n");
         for (var transData : parameters.getTransactionData()) {
@@ -216,8 +220,11 @@ public class CentralSystemService16_Service {
                 if (sampledValue.getFormat() == ValueFormat.SIGNED_DATA) {
                     sb.append("<value transactionId=\"" + transactionId + "\" context=\"" + sampledValue.getContext().value() + "\">\n");
                     sb.append("<signedData>" + sampledValue.getValue() + "</signedData>\n");
-                    //TODO: get PublicKey
-                    sb.append("<publicKey>" + "TODO" + "</publicKey>\n");
+                    if (StringUtils.isEmpty(publicKey)) {
+                        sb.append("<publicKey>" + "Not Found" + "</publicKey>\n");
+                    } else {
+                        sb.append("<publicKey>" + publicKey + "</publicKey>\n");
+                    }
                     sb.append("</value>\n");
                 }
             }

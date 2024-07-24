@@ -101,18 +101,21 @@ public class TransactionsRestController {
     public void stopTransaction(@RequestBody @Valid TransactionStopForm params) {
         //TODO: way reliable way to get the transaction id of open transaction(s)
         // for chargePoint + connector + TagId (TagId can not be in more than one active transaction)
-        List<Integer> activeTransactionIds = transactionRepository.getActiveTransactionIdOnConnector(params.chargeBoxId, params.getIdTag(), params.connectorId);
-        if (activeTransactionIds.size() > 0) {
-            log.info("Trying to stop Transaction with id " + activeTransactionIds.get(0) + " on chargebox " + params.chargeBoxId + " transactionCount(" + activeTransactionIds.size() + ")");
+        Integer activeTransactionId = transactionRepository.getActiveTransactionIdOnConnector(params.chargeBoxId, params.getIdTag(), params.connectorId);
+        if (activeTransactionId !=null) {
+            log.info("Trying to stop Transaction with id " + activeTransactionId + " on chargebox " + params.chargeBoxId);
             //needs to contain transactionId, maybe more
             var chargePoint = new ChargePointSelect(OcppTransport.JSON, params.chargeBoxId);
             var transParams = new RemoteStopTransactionParams();
-            transParams.setTransactionId(activeTransactionIds.get(0));
+            transParams.setTransactionId(activeTransactionId);
             transParams.setChargePointSelectList(Arrays.asList(chargePoint));
-            var response = chargePoint16Service.remoteStopTransaction(transParams);
+            chargePoint16Service.remoteStopTransaction(transParams);
             //return centralService16.stopTransaction(params, params.chargeBoxId);
         } else {
-            log.warn("No Active transactions found");
+            String message="No active transactions found";
+            log.warn(message);
+            //Throwing Exception to cause non 200 Response code
+            throw new BadRequestException(message);
         }
     }
 }

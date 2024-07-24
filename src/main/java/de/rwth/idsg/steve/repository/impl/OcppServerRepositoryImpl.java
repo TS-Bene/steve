@@ -93,7 +93,21 @@ public class OcppServerRepositoryImpl implements OcppServerRepository {
            .where(CHARGE_BOX.CHARGE_BOX_ID.equal(p.getChargeBoxId()))
            .execute();
     }
-
+    @Override
+    public void updateChargeBoxPrivateKey(String chargeBoxId,String privateKey){
+        ctx.update(CHARGE_BOX)
+                .set(CHARGE_BOX.NOTE,privateKey)
+                .where(CHARGE_BOX.CHARGE_BOX_ID.equal(chargeBoxId))
+                .execute();
+    }
+    @Override
+    public String getChargeBoxPublicKey(String chargeBoxId){
+        return ctx.select(CHARGE_BOX.NOTE)
+                .from(CHARGE_BOX)
+                .where(CHARGE_BOX.CHARGE_BOX_ID.equal(chargeBoxId))
+                .fetchOne()
+                .value1();
+    }
     @Override
     public void updateOcppProtocol(String chargeBoxIdentity, OcppProtocol protocol) {
         ctx.update(CHARGE_BOX)

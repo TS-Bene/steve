@@ -28,14 +28,7 @@ import jooq.steve.db.enums.TransactionStopEventActor;
 import jooq.steve.db.tables.records.ConnectorMeterValueRecord;
 import jooq.steve.db.tables.records.TransactionStartRecord;
 import org.joda.time.DateTime;
-import org.jooq.Condition;
-import org.jooq.DSLContext;
-import org.jooq.Field;
-import org.jooq.Record12;
-import org.jooq.Record9;
-import org.jooq.RecordMapper;
-import org.jooq.SelectQuery;
-import org.jooq.Table;
+import org.jooq.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
@@ -89,8 +82,8 @@ public class TransactionRepositoryImpl implements TransactionRepository {
     }
 
     @Override
-    public List<Integer> getActiveTransactionIdOnConnector(String chargeBoxId,String idTag, int connectorId) {
-        return ctx.select(TRANSACTION.TRANSACTION_PK)
+    public Integer getActiveTransactionIdOnConnector(String chargeBoxId,String idTag, int connectorId) {
+        Record1<Integer> t= ctx.select(TRANSACTION.TRANSACTION_PK)
                 .from(TRANSACTION)
                 .join(CONNECTOR)
                     .on(TRANSACTION.CONNECTOR_PK.equal(CONNECTOR.CONNECTOR_PK))
@@ -98,7 +91,10 @@ public class TransactionRepositoryImpl implements TransactionRepository {
                 .and(TRANSACTION.ID_TAG.equal(idTag))
                 .and(CONNECTOR.CHARGE_BOX_ID.equal(chargeBoxId))
                 .and(CONNECTOR.CONNECTOR_ID.equal(connectorId))
-                .fetch(TRANSACTION.TRANSACTION_PK);
+                .fetchOne();
+        if(t!=null){
+            return t.value1();
+        }else{return null;}
     }
 
     @Override
